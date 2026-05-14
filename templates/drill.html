@@ -57,7 +57,7 @@ function submitAnswer() {
   fetch('/drill/' + SESSION_ID + '/answer', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'question_id=' + QUESTION_ID + '&selected_answer=' + selectedAnswer
+    body: 'question_id=' + QUESTION_ID + '&selected_answer=' + selectedAnswer + '&csrf_token={{ csrf_token() }}'
   })
   .then(r => r.json())
   .then(data => {
