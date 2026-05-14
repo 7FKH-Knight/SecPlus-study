@@ -92,6 +92,29 @@
   </div>
 </div>
 
+{% if paused_sessions %}
+<div class="section-box paused-section">
+  <h2>⏸ Paused Exams</h2>
+  <table class="history-table">
+    <thead><tr><th>Date</th><th>Mode</th><th>Time Left</th><th></th></tr></thead>
+    <tbody>
+    {% for s in paused_sessions %}
+    <tr>
+      <td>{{ s.started_at[:10] }}</td>
+      <td>{{ s.mode.replace('_', ' ').title() }}</td>
+      <td>
+        {% set used = s.time_used_sec or 0 %}
+        {% set left = [s.time_limit_sec - used, 0] | max %}
+        {{ '%d:%02d' % (left // 60, left % 60) }}
+      </td>
+      <td><a class="btn btn-primary btn-sm" href="/exam/{{ s.id }}">▶ Resume</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <div class="action-buttons">
   <a class="btn btn-primary" href="/exam/start">Start 90-Question Exam</a>
   <a class="btn btn-secondary" href="/drill/start">Start Drill Session</a>

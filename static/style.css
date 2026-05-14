@@ -79,8 +79,10 @@ h2 { font-size: 1.2rem; margin: 1.5rem 0 0.8rem; color: var(--muted); text-trans
 
 /* ── Chips ──────────────────────────────────────────────── */
 .chip { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
-.chip.pass { background: rgba(34,197,94,0.15); color: var(--pass); }
-.chip.fail { background: rgba(239,68,68,0.15); color: var(--fail); }
+.chip.pass   { background: rgba(34,197,94,0.15);  color: var(--pass); }
+.chip.fail   { background: rgba(239,68,68,0.15);  color: var(--fail); }
+.chip.paused { background: rgba(245,158,11,0.15); color: var(--warn); }
+.chip.muted  { background: var(--surface2); color: var(--muted); }
 
 /* ── Buttons ────────────────────────────────────────────── */
 .btn { display: inline-block; padding: 0.6rem 1.4rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; }
@@ -89,7 +91,9 @@ h2 { font-size: 1.2rem; margin: 1.5rem 0 0.8rem; color: var(--muted); text-trans
 .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--border); text-decoration: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 0.3rem 0.8rem; font-size: 0.8rem; }
 .action-buttons { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem; }
+.paused-section { margin-top: 1.5rem; border-color: var(--warn); }
 
 /* ── Exam ───────────────────────────────────────────────── */
 .exam-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }

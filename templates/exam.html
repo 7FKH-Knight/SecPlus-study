@@ -14,7 +14,7 @@
   <input type="hidden" name="time_used_sec" id="time_used_sec" value="0">
 
   {% for q in questions %}
-  <div class="question-block" id="qblock-{{ loop.index }}">
+  <div class="question-block" id="qblock-{{ loop.index }}" data-index="{{ loop.index0 }}">
     <div class="question-num">Question {{ loop.index }} of {{ questions|length }}
       <span class="domain-tag">Domain {{ q.domain }}</span>
     </div>
@@ -34,16 +34,30 @@
 
   <div class="submit-area">
     <div id="unanswered-warn" class="warn" style="display:none"></div>
+    <button type="button" id="pause-btn" class="btn btn-secondary">⏸ Pause &amp; Save</button>
     <button type="button" class="btn btn-primary" onclick="submitExam()">Submit Exam</button>
   </div>
 </form>
 
 <script>
-const SESSION_ID = {{ session.id }};
-const TIME_LIMIT = {{ session.time_limit_sec }};
-const TOTAL_Q = {{ questions|length }};
+const SESSION_ID   = {{ session.id }};
+const TIME_LIMIT   = {{ session.time_limit_sec }};
+const TIME_START   = {{ time_remaining }};
+const TOTAL_Q      = {{ questions|length }};
+const SAVED        = {{ saved_answers | tojson }};
+
 let answered = new Array(TOTAL_Q).fill(false);
-let timeRemaining = TIME_LIMIT;
+let timeRemaining = TIME_START;
+
+// ── Restore saved answers from a previous pause ────────────────────────────
+Object.entries(SAVED).forEach(([name, val]) => {
+  const radio = document.querySelector(`input[name="${name}"][value="${val}"]`);
+  if (radio) {
+    radio.checked = true;
+    const card = radio.closest('[data-index]');
+    if (card) markAnswered(parseInt(card.dataset.index));
+  }
+});
 
 function markAnswered(idx) {
   answered[idx] = true;
@@ -60,7 +74,23 @@ function submitExam() {
   document.getElementById('exam-form').submit();
 }
 
-// Timer
+// ── Pause button ───────────────────────────────────────────────────────────
+document.getElementById('pause-btn').addEventListener('click', () => {
+  clearInterval(timerInterval);
+
+  const answers = {};
+  document.querySelectorAll('input[type="radio"]:checked').forEach(r => {
+    answers[r.name] = r.value;
+  });
+
+  fetch(`/exam/${SESSION_ID}/pause`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ answers, remaining_sec: timeRemaining })
+  }).then(() => { window.location.href = '/'; });
+});
+
+// ── Timer ──────────────────────────────────────────────────────────────────
 function pad(n) { return String(n).padStart(2, '0'); }
 function updateDisplay() {
   const m = Math.floor(timeRemaining / 60);
@@ -68,7 +98,7 @@ function updateDisplay() {
   const el = document.getElementById('timer');
   el.textContent = pad(m) + ':' + pad(s);
   if (timeRemaining <= 300) el.classList.add('timer-warn');
-  if (timeRemaining <= 60) el.classList.add('timer-critical');
+  if (timeRemaining <= 60)  el.classList.add('timer-critical');
 }
 
 window._examTimeRemaining = timeRemaining;

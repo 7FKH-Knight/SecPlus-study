@@ -70,6 +70,14 @@ def init_db():
         );
     """)
     db.commit()
+
+    # Safe migrations — add columns only if they don't exist yet
+    existing = {row[1] for row in db.execute("PRAGMA table_info(exam_sessions)").fetchall()}
+    if "paused_at" not in existing:
+        db.execute("ALTER TABLE exam_sessions ADD COLUMN paused_at TEXT")
+    if "saved_answers" not in existing:
+        db.execute("ALTER TABLE exam_sessions ADD COLUMN saved_answers TEXT")
+    db.commit()
     db.close()
 
 

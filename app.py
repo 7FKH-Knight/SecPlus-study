@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from datetime import datetime, timedelta
 import os
 import random
+import json
 import database as db
 import sm2
 from scoring import scale_score, domain_breakdown, select_exam_questions, DOMAIN_NAMES
@@ -113,6 +114,11 @@ def dashboard():
         "WHERE completed_at IS NOT NULL ORDER BY id DESC LIMIT 5"
     )
 
+    paused_sessions = db.fetchall(
+        "SELECT id, started_at, mode, time_limit_sec, time_used_sec FROM exam_sessions "
+        "WHERE completed_at IS NULL AND paused_at IS NOT NULL ORDER BY paused_at DESC"
+    )
+
     sm2_dist = db.fetchall(
         "SELECT CASE "
         "WHEN interval=0 THEN 'new' "
@@ -127,6 +133,7 @@ def dashboard():
         "dashboard.html",
         stats=stats,
         recent_sessions=recent_sessions,
+        paused_sessions=paused_sessions,
         sm2_buckets=sm2_buckets,
     )
 
@@ -166,12 +173,53 @@ def exam_view(session_id):
     if not session:
         return "Session not found", 404
 
+    # Calculate remaining time (accounts for time already used in a previous sitting)
+    time_remaining = session["time_limit_sec"]
+    if session.get("time_used_sec"):
+        time_remaining = max(0, session["time_limit_sec"] - session["time_used_sec"])
+
+    saved_answers = {}
+    if session.get("saved_answers"):
+        try:
+            saved_answers = json.loads(session["saved_answers"])
+        except (ValueError, TypeError):
+            saved_answers = {}
+
     q_rows = db.fetchall(
         "SELECT q.* FROM questions q "
         "JOIN drill_queue dq ON q.id=dq.question_id "
         "WHERE dq.session_id=? ORDER BY dq.position", (session_id,)
     )
-    return render_template("exam.html", session=session, questions=q_rows)
+    return render_template(
+        "exam.html",
+        session=session,
+        questions=q_rows,
+        time_remaining=time_remaining,
+        saved_answers=saved_answers,
+    )
+
+
+@app.route("/exam/<int:session_id>/pause", methods=["POST"])
+def exam_pause(session_id):
+    session = db.fetchone("SELECT * FROM exam_sessions WHERE id=?", (session_id,))
+    if not session or session.get("completed_at"):
+        return jsonify({"error": "not found or already completed"}), 400
+
+    data = request.get_json(silent=True) or {}
+    answers = data.get("answers", {})
+    remaining = data.get("remaining_sec")
+
+    time_used = (
+        session["time_limit_sec"] - remaining
+        if remaining is not None
+        else session.get("time_used_sec") or 0
+    )
+
+    db.execute(
+        "UPDATE exam_sessions SET paused_at=?, saved_answers=?, time_used_sec=? WHERE id=?",
+        (now_str(), json.dumps(answers), time_used, session_id),
+    )
+    return jsonify({"ok": True})
 
 
 @app.route("/exam/<int:session_id>/submit", methods=["POST"])
@@ -419,7 +467,11 @@ def drill_results(session_id):
 @app.route("/history")
 def history():
     sessions = db.fetchall(
-        "SELECT * FROM exam_sessions WHERE completed_at IS NOT NULL ORDER BY id DESC LIMIT 20"
+        "SELECT *, "
+        "CASE WHEN completed_at IS NOT NULL THEN 'completed' "
+        "     WHEN paused_at IS NOT NULL THEN 'paused' "
+        "     ELSE 'in progress' END as status "
+        "FROM exam_sessions ORDER BY id DESC LIMIT 30"
     )
     return render_template("history.html", sessions=sessions)
 
