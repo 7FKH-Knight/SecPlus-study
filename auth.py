@@ -68,7 +68,7 @@ def register():
                 from datetime import datetime
                 db.execute(
                     "INSERT INTO users (username, email, password_hash, created_at) VALUES (?,?,?,?)",
-                    (username, email, generate_password_hash(password),
+                    (username, email, generate_password_hash(password, method="pbkdf2:sha256"),
                      datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")),
                 )
                 return redirect(url_for("auth.login") + "?registered=1")
