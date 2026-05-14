@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Security+ Study{% endblock %}
 {% block content %}
-<h1>Study Dashboard</h1>
+<h1>Good {{ 'morning' if now.hour < 12 else ('afternoon' if now.hour < 17 else 'evening') }}, {{ current_user.username }} 👋</h1>
 
 <div class="metrics-row">
-  <div class="metric-card">
+  <div class="metric-card {{ 'pass' if stats.overall_pct >= 72 else ('warn' if stats.overall_pct >= 50 else 'fail') if stats.total_answered else '' }}">
     <div class="metric-value">{{ stats.overall_pct }}%</div>
     <div class="metric-label">Overall Accuracy</div>
     <div class="metric-sub">{{ stats.total_correct }}/{{ stats.total_answered }} answered</div>
   </div>
-  <div class="metric-card {% if stats.est_score and stats.est_score >= 750 %}pass{% elif stats.est_score %}fail{% endif %}">
+  <div class="metric-card {{ 'pass' if stats.est_score and stats.est_score >= 750 else 'fail' if stats.est_score else '' }}">
     <div class="metric-value">{{ stats.est_score if stats.est_score else '—' }}</div>
     <div class="metric-label">Estimated Score</div>
     <div class="metric-sub">Pass threshold: 750</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card {{ 'warn' if stats.cards_due > 0 else '' }}">
     <div class="metric-value">{{ stats.cards_due }}</div>
     <div class="metric-label">Cards Due Today</div>
     <div class="metric-sub">Spaced repetition queue</div>
   </div>
-  <div class="metric-card">
-    <div class="metric-value">{{ stats.streak }}</div>
+  <div class="metric-card {{ 'pass' if stats.streak >= 3 else '' }}">
+    <div class="metric-value">{{ stats.streak }}🔥</div>
     <div class="metric-label">Day Streak</div>
     <div class="metric-sub">Consecutive study days</div>
   </div>
@@ -38,12 +38,34 @@
     <div class="domain-pct">{{ d.pct }}%</div>
     <div class="progress-bar">
       <div class="progress-fill {% if d.pct >= 80 %}good{% elif d.pct >= 70 %}ok{% else %}bad{% endif %}"
-           style="width: {{ d.pct }}%"></div>
+           style="width:{{ d.pct }}%"></div>
     </div>
     <div class="domain-sub">{{ d.correct }}/{{ d.total }} correct</div>
   </div>
   {% endfor %}
 </div>
+
+{% if paused_sessions %}
+<div class="section-box paused-section">
+  <h2>⏸ Paused Exams</h2>
+  <table class="history-table">
+    <thead><tr><th>Date</th><th>Mode</th><th>Time Left</th><th></th></tr></thead>
+    <tbody>
+    {% for s in paused_sessions %}
+    <tr>
+      <td>{{ s.started_at[:10] }}</td>
+      <td>{{ s.mode.replace('_', ' ').title() }}</td>
+      <td>
+        {% set left = [s.time_limit_sec - (s.time_used_sec or 0), 0] | max %}
+        {{ '%d:%02d' % (left // 60, left % 60) }}
+      </td>
+      <td><a class="btn btn-primary btn-sm" href="{{ url_for('exam_view', session_id=s.id) }}">▶ Resume</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 <div class="bottom-row">
   <div class="section-box">
@@ -55,7 +77,7 @@
       <div class="sm2-row">
         <span class="sm2-label">{{ label }}</span>
         <div class="sm2-bar-wrap">
-          <div class="sm2-bar-fill" style="width: {{ [cnt * 2, 100] | min }}px"></div>
+          <div class="sm2-bar-fill" style="width:{{ [cnt * 2, 100] | min }}px"></div>
         </div>
         <span class="sm2-cnt">{{ cnt }}</span>
       </div>
@@ -73,7 +95,7 @@
       <tr>
         <td>{{ s.started_at[:10] }}</td>
         <td>{{ s.mode.replace('_', ' ').title() }}</td>
-        <td>{{ s.scaled_score if s.scaled_score else '—' }}</td>
+        <td class="bold">{{ s.scaled_score if s.scaled_score else '—' }}</td>
         <td>
           {% if s.scaled_score %}
             <span class="chip {% if s.passed %}pass{% else %}fail{% endif %}">
@@ -81,42 +103,20 @@
             </span>
           {% endif %}
         </td>
-        <td><a href="/exam/{{ s.id }}/review">Review</a></td>
+        <td><a href="{{ url_for('exam_review', session_id=s.id) }}" class="btn btn-ghost btn-sm">Review</a></td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <p class="muted">No exams completed yet. <a href="/exam/start">Start one!</a></p>
+    <p class="muted" style="padding:1rem 0">No exams completed yet. <a href="{{ url_for('exam_start') }}">Start one!</a></p>
     {% endif %}
   </div>
 </div>
 
-{% if paused_sessions %}
-<div class="section-box paused-section">
-  <h2>⏸ Paused Exams</h2>
-  <table class="history-table">
-    <thead><tr><th>Date</th><th>Mode</th><th>Time Left</th><th></th></tr></thead>
-    <tbody>
-    {% for s in paused_sessions %}
-    <tr>
-      <td>{{ s.started_at[:10] }}</td>
-      <td>{{ s.mode.replace('_', ' ').title() }}</td>
-      <td>
-        {% set used = s.time_used_sec or 0 %}
-        {% set left = [s.time_limit_sec - used, 0] | max %}
-        {{ '%d:%02d' % (left // 60, left % 60) }}
-      </td>
-      <td><a class="btn btn-primary btn-sm" href="/exam/{{ s.id }}">▶ Resume</a></td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
 <div class="action-buttons">
-  <a class="btn btn-primary" href="/exam/start">Start 90-Question Exam</a>
-  <a class="btn btn-secondary" href="/drill/start">Start Drill Session</a>
+  <a class="btn btn-primary btn-lg" href="{{ url_for('exam_start') }}">Start 90-Question Exam</a>
+  <a class="btn btn-secondary" href="{{ url_for('drill_start') }}">Start Drill Session</a>
+  <a class="btn btn-ghost" href="{{ url_for('history') }}">View All History</a>
 </div>
 {% endblock %}

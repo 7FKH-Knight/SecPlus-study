@@ -1,0 +1,15 @@
+{
+  "appId": "com.yourname.secplusstudy",
+  "appName": "Sec+ Study",
+  "webDir": ".",
+  "server": {
+    "url": "https://YOUR-APP.railway.app",
+    "cleartext": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#0d0f18"
+    }
+  }
+}

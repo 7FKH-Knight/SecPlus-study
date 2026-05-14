@@ -8,22 +8,34 @@
   <!-- PWA -->
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#7c5cbf">
-  <!-- iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Sec+ Study">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <!-- CSRF -->
+  {% if current_user.is_authenticated %}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% endif %}
 </head>
 <body>
+  {% if current_user.is_authenticated %}
   <nav class="navbar">
-    <a class="nav-brand" href="/">Security+ SY0-701</a>
+    <a class="nav-brand" href="/">
+      <span class="nav-brand-icon">🔐</span>
+      Security+ SY0-701
+    </a>
     <div class="nav-links">
-      <a href="/">Dashboard</a>
-      <a href="/exam/start">Practice Exam</a>
-      <a href="/drill/start">Drill Mode</a>
-      <a href="/history">History</a>
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
+      <a href="{{ url_for('exam_start') }}">Practice Exam</a>
+      <a href="{{ url_for('drill_start') }}">Drill Mode</a>
+      <a href="{{ url_for('history') }}" class="{{ 'active' if request.endpoint == 'history' }}">History</a>
+    </div>
+    <div class="nav-user">
+      <span class="nav-username">{{ current_user.username }}</span>
+      <a href="{{ url_for('auth.logout') }}" class="nav-logout">Sign out</a>
     </div>
   </nav>
+  {% endif %}
   <main class="container">
     {% block content %}{% endblock %}
   </main>

@@ -15,6 +15,13 @@ def get_db():
 def init_db():
     db = get_db()
     db.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS questions (
             id INTEGER PRIMARY KEY,
             domain INTEGER NOT NULL,
@@ -44,6 +51,7 @@ def init_db():
         );
         CREATE TABLE IF NOT EXISTS exam_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
             started_at TEXT NOT NULL,
             completed_at TEXT,
             mode TEXT NOT NULL,
@@ -51,7 +59,9 @@ def init_db():
             time_used_sec INTEGER,
             raw_score INTEGER,
             scaled_score INTEGER,
-            passed INTEGER
+            passed INTEGER,
+            paused_at TEXT,
+            saved_answers TEXT
         );
         CREATE TABLE IF NOT EXISTS exam_answers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,6 +87,8 @@ def init_db():
         db.execute("ALTER TABLE exam_sessions ADD COLUMN paused_at TEXT")
     if "saved_answers" not in existing:
         db.execute("ALTER TABLE exam_sessions ADD COLUMN saved_answers TEXT")
+    if "user_id" not in existing:
+        db.execute("ALTER TABLE exam_sessions ADD COLUMN user_id INTEGER REFERENCES users(id)")
     db.commit()
     db.close()
 
@@ -143,6 +155,16 @@ def execute(sql, params=()):
     last_id = cur.lastrowid
     db.close()
     return last_id
+
+
+def update(sql, params=()):
+    """Like execute() but returns rowcount instead of lastrowid."""
+    db = get_db()
+    cur = db.execute(sql, params)
+    db.commit()
+    count = cur.rowcount
+    db.close()
+    return count
 
 
 def executemany(sql, param_list):

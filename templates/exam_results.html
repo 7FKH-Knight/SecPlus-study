@@ -1,39 +1,85 @@
 {% extends "base.html" %}
 {% block title %}Exam Results — Security+ Study{% endblock %}
 {% block content %}
-<h1>Exam Results</h1>
 
-<div class="score-banner {% if session.passed %}pass{% else %}fail{% endif %}">
+<div class="score-banner {% if session.passed %}pass{% else %}fail{% endif %}" id="score-banner">
   <div class="score-big">{{ session.scaled_score }}</div>
-  <div class="score-label">Scaled Score</div>
-  <div class="score-verdict">{{ 'PASS' if session.passed else 'FAIL' }}</div>
-  <div class="score-sub">{{ session.raw_score }} correct &nbsp;|&nbsp; Pass threshold: 750</div>
-  {% if session.time_used_sec %}
-  <div class="score-sub">Time used: {{ (session.time_used_sec // 60) }}m {{ session.time_used_sec % 60 }}s</div>
-  {% endif %}
+  <div class="score-label">CompTIA Scaled Score (100–900)</div>
+  <div class="score-verdict">{{ '🎉 PASS' if session.passed else '✗ FAIL' }}</div>
+  <div class="score-meta">
+    <div class="score-meta-item">
+      <div class="score-meta-val">{{ session.raw_score }}/{{ session.raw_score + (90 - session.raw_score) }}</div>
+      <div class="score-meta-label">Correct</div>
+    </div>
+    <div class="score-meta-item">
+      <div class="score-meta-val">750</div>
+      <div class="score-meta-label">Pass Threshold</div>
+    </div>
+    {% if session.time_used_sec %}
+    <div class="score-meta-item">
+      <div class="score-meta-val">{{ session.time_used_sec // 60 }}m {{ session.time_used_sec % 60 }}s</div>
+      <div class="score-meta-label">Time Used</div>
+    </div>
+    {% endif %}
+    <div class="score-meta-item">
+      <div class="score-meta-val">{{ ((session.raw_score / 90) * 100) | round(1) }}%</div>
+      <div class="score-meta-label">Raw Accuracy</div>
+    </div>
+  </div>
 </div>
 
 <h2>Domain Breakdown</h2>
-<div class="domain-grid">
+<div class="breakdown-grid">
   {% for d, v in breakdown.items() %}
-  <div class="domain-card {% if v.pct < 70 and v.total > 0 %}weak{% endif %}">
+  <div class="breakdown-card {% if v.pct < 70 and v.total > 0 %}weak{% endif %}">
     <div class="domain-header">
       <span class="domain-num">D{{ d }}</span>
-      <span class="domain-name">{{ v.name }}</span>
+      {% if v.pct < 70 and v.total > 0 %}<span class="badge-weak">Needs Work</span>{% endif %}
     </div>
-    <div class="domain-pct">{{ v.pct }}%</div>
+    <div class="breakdown-name">{{ v.name }}</div>
+    <div class="breakdown-pct {% if v.pct >= 80 %}pass-text{% elif v.pct >= 70 %}warn-text{% else %}fail-text{% endif %}">
+      {{ v.pct }}%
+    </div>
     <div class="progress-bar">
       <div class="progress-fill {% if v.pct >= 80 %}good{% elif v.pct >= 70 %}ok{% else %}bad{% endif %}"
-           style="width: {{ v.pct }}%"></div>
+           style="width:{{ v.pct }}%"></div>
     </div>
-    <div class="domain-sub">{{ v.correct }}/{{ v.total }}</div>
+    <div class="breakdown-sub">{{ v.correct }}/{{ v.total }} correct</div>
   </div>
   {% endfor %}
 </div>
 
 <div class="action-buttons">
-  <a class="btn btn-secondary" href="/exam/{{ session.id }}/review">Review All Questions</a>
-  <a class="btn btn-primary" href="/exam/start">New Exam</a>
-  <a class="btn btn-secondary" href="/drill/start">Drill Weak Areas</a>
+  <a class="btn btn-secondary" href="{{ url_for('exam_review', session_id=session.id) }}">Review All Questions</a>
+  <a class="btn btn-primary" href="{{ url_for('exam_start') }}">New Exam</a>
+  <a class="btn btn-ghost" href="{{ url_for('drill_start') }}">Drill Weak Areas</a>
 </div>
+
+{% if session.passed %}
+<script>
+// Confetti on PASS
+const banner = document.getElementById('score-banner');
+const colors = ['#7c5cbf','#22c55e','#4f8ef7','#f59e0b','#ec4899'];
+for (let i = 0; i < 28; i++) {
+  const el = document.createElement('div');
+  el.className = 'confetti-piece';
+  el.style.cssText = [
+    `left:${Math.random()*100}%`,
+    `top:${Math.random()*60}%`,
+    `background:${colors[Math.floor(Math.random()*colors.length)]}`,
+    `animation-delay:${Math.random()*0.8}s`,
+    `animation-duration:${0.9+Math.random()*0.6}s`,
+    `transform:rotate(${Math.random()*360}deg)`,
+    `border-radius:${Math.random()>0.5?'50%':'2px'}`,
+  ].join(';');
+  banner.appendChild(el);
+}
+</script>
+{% endif %}
+
+<style>
+.pass-text { color: var(--pass); }
+.warn-text { color: var(--warn); }
+.fail-text { color: var(--fail); }
+</style>
 {% endblock %}
