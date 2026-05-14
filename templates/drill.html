@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Drill — Security+ Study{% endblock %}
+{% block content %}
+<div class="drill-header">
+  <h1>Drill Mode</h1>
+  <div class="drill-progress">
+    Question {{ answered + 1 }} of {{ total }}
+    <div class="progress-bar" style="margin-top:6px">
+      <div class="progress-fill good" style="width: {{ (answered / total * 100) if total else 0 }}%"></div>
+    </div>
+  </div>
+</div>
+
+<div class="question-block" id="drill-question">
+  <div class="domain-tag" style="margin-bottom:8px">Domain {{ question.domain }} — {{ question.subdomain }}</div>
+  <div class="question-stem">{{ question.stem }}</div>
+  <div class="options" id="drill-options">
+    {% for letter in ['A','B','C','D'] %}
+    <label class="option-label" id="lbl-{{ letter }}" onclick="selectOption('{{ letter }}', this)">
+      <span class="option-letter">{{ letter }}</span>
+      <span class="option-text">{{ question['option_' + letter.lower()] }}</span>
+    </label>
+    {% endfor %}
+  </div>
+
+  <div id="feedback-area" style="display:none">
+    <div id="feedback-banner"></div>
+    <div id="explanation-box" class="explanation-box"></div>
+    <button class="btn btn-primary" onclick="nextQuestion()">Next Question</button>
+  </div>
+
+  <div id="submit-area">
+    <button class="btn btn-primary" id="submit-btn" onclick="submitAnswer()" disabled>Submit Answer</button>
+  </div>
+</div>
+
+<script>
+const SESSION_ID = {{ session.id }};
+const QUESTION_ID = {{ question.id }};
+let selectedAnswer = null;
+
+function selectOption(letter, el) {
+  document.querySelectorAll('.option-label').forEach(l => l.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedAnswer = letter;
+  document.getElementById('submit-btn').disabled = false;
+}
+
+function submitAnswer() {
+  if (!selectedAnswer) return;
+  document.getElementById('submit-btn').disabled = true;
+  document.querySelectorAll('.option-label').forEach(l => {
+    l.style.pointerEvents = 'none';
+    l.onclick = null;
+  });
+
+  fetch('/drill/' + SESSION_ID + '/answer', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'question_id=' + QUESTION_ID + '&selected_answer=' + selectedAnswer
+  })
+  .then(r => r.json())
+  .then(data => {
+    const banner = document.getElementById('feedback-banner');
+    if (data.is_correct) {
+      banner.className = 'feedback-correct';
+      banner.textContent = 'Correct!';
+    } else {
+      banner.className = 'feedback-wrong';
+      banner.textContent = 'Incorrect — Correct answer: ' + data.correct_answer;
+    }
+
+    // Show all explanations
+    let html = '<h3>Explanations</h3>';
+    const letters = ['A','B','C','D'];
+    letters.forEach(l => {
+      const exp = data.explanations[l] || '';
+      const isCorrect = l === data.correct_answer;
+      const isSelected = l === selectedAnswer;
+      html += '<div class="exp-item ' + (isCorrect ? 'exp-correct' : '') + (isSelected && !isCorrect ? ' exp-wrong' : '') + '">';
+      html += '<strong>' + l + ':</strong> ' + exp;
+      html += '</div>';
+    });
+    document.getElementById('explanation-box').innerHTML = html;
+    document.getElementById('feedback-area').style.display = 'block';
+    document.getElementById('submit-area').style.display = 'none';
+
+    // Highlight correct/wrong options
+    document.getElementById('lbl-' + data.correct_answer).classList.add('option-correct');
+    if (!data.is_correct) {
+      document.getElementById('lbl-' + selectedAnswer).classList.add('option-wrong');
+    }
+  });
+}
+
+function nextQuestion() {
+  window.location.href = '/drill/' + SESSION_ID + '/question';
+}
+</script>
+{% endblock %}

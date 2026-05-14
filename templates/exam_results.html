@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Exam Results — Security+ Study{% endblock %}
+{% block content %}
+<h1>Exam Results</h1>
+
+<div class="score-banner {% if session.passed %}pass{% else %}fail{% endif %}">
+  <div class="score-big">{{ session.scaled_score }}</div>
+  <div class="score-label">Scaled Score</div>
+  <div class="score-verdict">{{ 'PASS' if session.passed else 'FAIL' }}</div>
+  <div class="score-sub">{{ session.raw_score }} correct &nbsp;|&nbsp; Pass threshold: 750</div>
+  {% if session.time_used_sec %}
+  <div class="score-sub">Time used: {{ (session.time_used_sec // 60) }}m {{ session.time_used_sec % 60 }}s</div>
+  {% endif %}
+</div>
+
+<h2>Domain Breakdown</h2>
+<div class="domain-grid">
+  {% for d, v in breakdown.items() %}
+  <div class="domain-card {% if v.pct < 70 and v.total > 0 %}weak{% endif %}">
+    <div class="domain-header">
+      <span class="domain-num">D{{ d }}</span>
+      <span class="domain-name">{{ v.name }}</span>
+    </div>
+    <div class="domain-pct">{{ v.pct }}%</div>
+    <div class="progress-bar">
+      <div class="progress-fill {% if v.pct >= 80 %}good{% elif v.pct >= 70 %}ok{% else %}bad{% endif %}"
+           style="width: {{ v.pct }}%"></div>
+    </div>
+    <div class="domain-sub">{{ v.correct }}/{{ v.total }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="action-buttons">
+  <a class="btn btn-secondary" href="/exam/{{ session.id }}/review">Review All Questions</a>
+  <a class="btn btn-primary" href="/exam/start">New Exam</a>
+  <a class="btn btn-secondary" href="/drill/start">Drill Weak Areas</a>
+</div>
+{% endblock %}

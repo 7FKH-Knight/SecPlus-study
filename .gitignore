@@ -1,0 +1,20 @@
+# Database — contains user data, never commit
+study.db
+*.db
+*.db-wal
+*.db-shm
+
+# Environment — contains secrets
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# macOS
+.DS_Store

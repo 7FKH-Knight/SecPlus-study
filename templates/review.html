@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Review — Security+ Study{% endblock %}
+{% block content %}
+<h1>Exam Review</h1>
+<p><a href="/exam/{{ session_id }}/results">Back to Results</a></p>
+
+{% for row in rows %}
+<div class="review-block {% if row.is_correct %}review-correct{% else %}review-wrong{% endif %}">
+  <div class="review-meta">
+    Q{{ loop.index }} &nbsp;|&nbsp; Domain {{ row.domain }}
+    &nbsp;|&nbsp;
+    {% if row.is_correct %}
+      <span class="chip pass">Correct</span>
+    {% else %}
+      <span class="chip fail">Wrong</span> — you answered <strong>{{ row.selected_answer or 'skipped' }}</strong>,
+      correct is <strong>{{ row.correct_answer }}</strong>
+    {% endif %}
+  </div>
+  <div class="review-stem">{{ row.stem }}</div>
+  <div class="review-options">
+    {% for letter in ['A','B','C','D'] %}
+    <div class="review-opt
+      {% if letter == row.correct_answer %}opt-correct{% endif %}
+      {% if letter == row.selected_answer and not row.is_correct %}opt-wrong{% endif %}">
+      <strong>{{ letter }}:</strong> {{ row['option_' + letter.lower()] }}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="explanation-box" style="margin-top:10px">
+    <h4>Explanations</h4>
+    {% for letter in ['A','B','C','D'] %}
+    <div class="exp-item {% if letter == row.correct_answer %}exp-correct{% endif %}">
+      <strong>{{ letter }}:</strong> {{ row['explanation_' + letter.lower()] }}
+    </div>
+    {% endfor %}
+    <div class="exp-item" style="margin-top:8px">
+      <strong>Why correct:</strong> {{ row.explanation_correct }}
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Security+ Study{% endblock %}
+{% block content %}
+<h1>Study Dashboard</h1>
+
+<div class="metrics-row">
+  <div class="metric-card">
+    <div class="metric-value">{{ stats.overall_pct }}%</div>
+    <div class="metric-label">Overall Accuracy</div>
+    <div class="metric-sub">{{ stats.total_correct }}/{{ stats.total_answered }} answered</div>
+  </div>
+  <div class="metric-card {% if stats.est_score and stats.est_score >= 750 %}pass{% elif stats.est_score %}fail{% endif %}">
+    <div class="metric-value">{{ stats.est_score if stats.est_score else '—' }}</div>
+    <div class="metric-label">Estimated Score</div>
+    <div class="metric-sub">Pass threshold: 750</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">{{ stats.cards_due }}</div>
+    <div class="metric-label">Cards Due Today</div>
+    <div class="metric-sub">Spaced repetition queue</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">{{ stats.streak }}</div>
+    <div class="metric-label">Day Streak</div>
+    <div class="metric-sub">Consecutive study days</div>
+  </div>
+</div>
+
+<h2>Domain Performance</h2>
+<div class="domain-grid">
+  {% for d in stats.domains %}
+  <div class="domain-card {% if d.weak %}weak{% endif %}">
+    <div class="domain-header">
+      <span class="domain-num">D{{ d.domain }}</span>
+      <span class="domain-name">{{ d.name }}</span>
+      {% if d.weak %}<span class="badge-weak">Weak</span>{% endif %}
+    </div>
+    <div class="domain-pct">{{ d.pct }}%</div>
+    <div class="progress-bar">
+      <div class="progress-fill {% if d.pct >= 80 %}good{% elif d.pct >= 70 %}ok{% else %}bad{% endif %}"
+           style="width: {{ d.pct }}%"></div>
+    </div>
+    <div class="domain-sub">{{ d.correct }}/{{ d.total }} correct</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="bottom-row">
+  <div class="section-box">
+    <h2>SM-2 Card Distribution</h2>
+    <div class="sm2-bars">
+      {% set buckets = [('new', 'New'), ('1-6d', '1–6 days'), ('7-30d', '7–30 days'), ('30d+', '30+ days')] %}
+      {% for key, label in buckets %}
+      {% set cnt = sm2_buckets.get(key, 0) %}
+      <div class="sm2-row">
+        <span class="sm2-label">{{ label }}</span>
+        <div class="sm2-bar-wrap">
+          <div class="sm2-bar-fill" style="width: {{ [cnt * 2, 100] | min }}px"></div>
+        </div>
+        <span class="sm2-cnt">{{ cnt }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="section-box">
+    <h2>Recent Exams</h2>
+    {% if recent_sessions %}
+    <table class="history-table">
+      <thead><tr><th>Date</th><th>Mode</th><th>Score</th><th>Result</th><th></th></tr></thead>
+      <tbody>
+      {% for s in recent_sessions %}
+      <tr>
+        <td>{{ s.started_at[:10] }}</td>
+        <td>{{ s.mode.replace('_', ' ').title() }}</td>
+        <td>{{ s.scaled_score if s.scaled_score else '—' }}</td>
+        <td>
+          {% if s.scaled_score %}
+            <span class="chip {% if s.passed %}pass{% else %}fail{% endif %}">
+              {{ 'PASS' if s.passed else 'FAIL' }}
+            </span>
+          {% endif %}
+        </td>
+        <td><a href="/exam/{{ s.id }}/review">Review</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No exams completed yet. <a href="/exam/start">Start one!</a></p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="action-buttons">
+  <a class="btn btn-primary" href="/exam/start">Start 90-Question Exam</a>
+  <a class="btn btn-secondary" href="/drill/start">Start Drill Session</a>
+</div>
+{% endblock %}

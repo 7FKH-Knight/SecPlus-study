@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}History — Security+ Study{% endblock %}
+{% block content %}
+<h1>Session History</h1>
+{% if sessions %}
+<table class="history-table">
+  <thead>
+    <tr>
+      <th>#</th><th>Date</th><th>Mode</th><th>Score</th><th>Raw</th><th>Result</th><th>Time</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for s in sessions %}
+  <tr>
+    <td>{{ s.id }}</td>
+    <td>{{ s.started_at[:10] }}</td>
+    <td>{{ s.mode.replace('_', ' ').title() }}</td>
+    <td>{{ s.scaled_score if s.scaled_score else '—' }}</td>
+    <td>{{ s.raw_score if s.raw_score is not none else '—' }}</td>
+    <td>
+      {% if s.scaled_score %}
+        <span class="chip {% if s.passed %}pass{% else %}fail{% endif %}">
+          {{ 'PASS' if s.passed else 'FAIL' }}
+        </span>
+      {% endif %}
+    </td>
+    <td>{{ (s.time_used_sec // 60) ~ 'm' if s.time_used_sec else '—' }}</td>
+    <td><a href="/exam/{{ s.id }}/review">Review</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No completed sessions yet.</p>
+{% endif %}
+<div class="action-buttons">
+  <a class="btn btn-primary" href="/exam/start">New Exam</a>
+</div>
+{% endblock %}

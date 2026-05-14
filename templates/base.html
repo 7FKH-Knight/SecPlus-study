@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Security+ Study{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <a class="nav-brand" href="/">Security+ SY0-701</a>
+    <div class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="/exam/start">Practice Exam</a>
+      <a href="/drill/start">Drill Mode</a>
+      <a href="/history">History</a>
+    </div>
+  </nav>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
