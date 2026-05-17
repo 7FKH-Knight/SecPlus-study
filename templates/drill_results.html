@@ -3,14 +3,16 @@
 {% block content %}
 <h1>Drill Complete</h1>
 
-<div class="score-banner {% if correct / total >= 0.7 %}pass{% else %}fail{% endif %}">
+{% set pct = (correct / total * 100) if total else 0 %}
+<div class="score-banner {% if pct >= 70 %}pass{% else %}fail{% endif %}">
   <div class="score-big">{{ correct }}/{{ total }}</div>
-  <div class="score-label">{{ '%.0f' % (correct / total * 100) if total else 0 }}% Correct</div>
+  <div class="score-label">{{ '%.0f' % pct }}% Correct</div>
+  <div class="score-verdict">{{ '✓ Great work!' if pct >= 70 else '✗ Keep practicing' }}</div>
 </div>
 
-<div class="action-buttons" style="margin-top:2rem">
-  <a class="btn btn-primary" href="/drill/start">New Drill Session</a>
-  <a class="btn btn-secondary" href="/exam/start">Start Full Exam</a>
-  <a class="btn btn-secondary" href="/">Dashboard</a>
+<div class="action-buttons">
+  <a class="btn btn-primary" href="{{ url_for('drill_start') }}">New Drill Session</a>
+  <a class="btn btn-secondary" href="{{ url_for('exam_start') }}">Start Full Exam</a>
+  <a class="btn btn-ghost" href="{{ url_for('dashboard') }}">Dashboard</a>
 </div>
 {% endblock %}

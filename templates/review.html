@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Review — Security+ Study{% endblock %}
 {% block content %}
-<h1>Exam Review</h1>
-<p><a href="/exam/{{ session_id }}/results">Back to Results</a></p>
+<div class="page-header">
+  <h1>Exam Review</h1>
+  <a href="{{ url_for('exam_results', session_id=session_id) }}" class="btn btn-ghost btn-sm">← Back to Results</a>
+</div>
 
 {% for row in rows %}
 <div class="review-block {% if row.is_correct %}review-correct{% else %}review-wrong{% endif %}">
@@ -20,23 +22,29 @@
   <div class="review-options">
     {% for letter in ['A','B','C','D'] %}
     <div class="review-opt
-      {% if letter == row.correct_answer %}opt-correct{% endif %}
-      {% if letter == row.selected_answer and not row.is_correct %}opt-wrong{% endif %}">
+      {%- if letter == row.correct_answer %} opt-correct{%- endif %}
+      {%- if letter == row.selected_answer and not row.is_correct %} opt-wrong{%- endif %}">
       <strong>{{ letter }}:</strong> {{ row['option_' + letter.lower()] }}
     </div>
     {% endfor %}
   </div>
-  <div class="explanation-box" style="margin-top:10px">
+  <div class="explanation-box">
     <h4>Explanations</h4>
     {% for letter in ['A','B','C','D'] %}
     <div class="exp-item {% if letter == row.correct_answer %}exp-correct{% endif %}">
       <strong>{{ letter }}:</strong> {{ row['explanation_' + letter.lower()] }}
     </div>
     {% endfor %}
-    <div class="exp-item" style="margin-top:8px">
+    <div class="exp-item exp-correct" style="margin-top:6px">
       <strong>Why correct:</strong> {{ row.explanation_correct }}
     </div>
   </div>
 </div>
 {% endfor %}
+
+<div class="action-buttons" style="margin-top:2rem">
+  <a href="{{ url_for('exam_results', session_id=session_id) }}" class="btn btn-ghost">← Back to Results</a>
+  <a href="{{ url_for('exam_start') }}" class="btn btn-primary">New Exam</a>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Dashboard</a>
+</div>
 {% endblock %}

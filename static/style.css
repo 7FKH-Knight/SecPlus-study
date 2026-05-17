@@ -227,6 +227,9 @@ h2 { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: 
 .chip.pass     { background: rgba(34,197,94,.15);  color: var(--pass); }
 .chip.fail     { background: rgba(239,68,68,.15);  color: var(--fail); }
 .chip.paused   { background: rgba(245,158,11,.15); color: var(--warn); }
+.pass-text { color: var(--pass); }
+.warn-text { color: var(--warn); }
+.fail-text { color: var(--fail); }
 .muted-chip    { background: var(--surface2); color: var(--muted);
                  padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
 
