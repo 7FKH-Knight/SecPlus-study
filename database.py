@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+import hashlib
 
 DB_PATH = os.environ.get("DB_PATH") or os.path.join(os.path.dirname(__file__), "study.db")
 
@@ -89,6 +90,19 @@ def init_db():
         db.execute("ALTER TABLE exam_sessions ADD COLUMN saved_answers TEXT")
     if "user_id" not in existing:
         db.execute("ALTER TABLE exam_sessions ADD COLUMN user_id INTEGER REFERENCES users(id)")
+
+    user_cols = {row[1] for row in db.execute("PRAGMA table_info(users)").fetchall()}
+    if "failed_attempts" not in user_cols:
+        db.execute("ALTER TABLE users ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0")
+    if "locked_until" not in user_cols:
+        db.execute("ALTER TABLE users ADD COLUMN locked_until TEXT")
+    db.commit()
+
+    # Migrate plaintext emails → SHA-256 hashes (safe to run repeatedly)
+    for row in db.execute("SELECT id, email FROM users").fetchall():
+        if "@" in row[1]:
+            hashed = hashlib.sha256(row[1].lower().strip().encode()).hexdigest()
+            db.execute("UPDATE users SET email=? WHERE id=?", (hashed, row[0]))
     db.commit()
     db.close()
 
