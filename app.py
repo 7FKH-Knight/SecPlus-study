@@ -20,6 +20,9 @@ app = Flask(__name__)
 env = os.environ.get("FLASK_ENV", "development")
 app.config.from_object(config[env])
 
+# Ensure DB tables exist regardless of whether started via gunicorn or directly
+db.init_db()
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
