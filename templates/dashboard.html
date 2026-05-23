@@ -1,7 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Security+ Study{% endblock %}
 {% block content %}
-<h1>Good {{ 'morning' if now.hour < 12 else ('afternoon' if now.hour < 17 else 'evening') }}, {{ current_user.username }} 👋</h1>
+<h1 id="greeting">Hello, {{ current_user.username }} 👋</h1>
+<script>
+(function(){
+  const h = new Date().getHours();
+  const word = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  document.getElementById('greeting').textContent = 'Good ' + word + ', {{ current_user.username }} 👋';
+})();
+</script>
 
 <div class="metrics-row">
   <div class="metric-card {{ 'pass' if stats.overall_pct >= 72 else ('warn' if stats.overall_pct >= 50 else 'fail') if stats.total_answered else '' }}">
