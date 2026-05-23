@@ -3,8 +3,7 @@ load_dotenv()
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, abort
 from flask_login import login_required, current_user
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime, timedelta, timezone
 import os
 import random
@@ -15,10 +14,14 @@ import sm2
 from scoring import scale_score, domain_breakdown, select_exam_questions, DOMAIN_NAMES
 from config import config
 from auth import auth_bp, login_manager
+from extensions import limiter
 
 app = Flask(__name__)
 env = os.environ.get("FLASK_ENV", "development")
 app.config.from_object(config[env])
+
+# Trust Railway's reverse proxy so rate limiting sees real client IPs
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # Ensure DB tables exist regardless of whether started via gunicorn or directly
 db.init_db()
@@ -29,12 +32,7 @@ login_manager.login_view = "auth.login"
 app.register_blueprint(auth_bp)
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["300 per minute"],
-    storage_uri="memory://",
-)
+limiter.init_app(app)
 
 # ── CSRF helper ───────────────────────────────────────────────────────────────
 def generate_csrf():
@@ -80,7 +78,7 @@ def check_csrf():
         else:
             token = request.form.get("csrf_token", "")
         expected = session.get("csrf_token", "")
-        if not expected or token != expected:
+        if not expected or not secrets.compare_digest(token, expected):
             # Allow /login and /register (pre-session forms)
             if request.endpoint not in ("auth.login", "auth.register"):
                 abort(403)
@@ -93,8 +91,14 @@ def add_security_headers(response):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+        "connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self';"
     )
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    )
+    if request.is_secure:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
@@ -225,9 +229,9 @@ def dashboard():
 
 @app.route("/init")
 def init():
-    token = request.args.get("token")
-    expected = app.config.get("INIT_TOKEN")
-    if not expected or token != expected:
+    token = request.args.get("token") or ""
+    expected = app.config.get("INIT_TOKEN") or ""
+    if not expected or not secrets.compare_digest(token, expected):
         return "Forbidden", 403
     qpath = os.path.join(os.path.dirname(__file__), "questions.json")
     count = db.load_questions(qpath)
@@ -529,6 +533,14 @@ def drill_answer(session_id):
 
     if selected not in {"A", "B", "C", "D"}:
         return jsonify({"error": "invalid answer"}), 400
+
+    # Verify this question belongs to the current drill session and isn't already answered
+    dq = db.fetchone(
+        "SELECT id FROM drill_queue WHERE session_id=? AND question_id=? AND answered=0",
+        (session_id, question_id),
+    )
+    if not dq:
+        return jsonify({"error": "invalid question for this session"}), 400
 
     q = db.fetchone("SELECT * FROM questions WHERE id=?", (question_id,))
     if not q:

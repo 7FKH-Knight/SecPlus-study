@@ -1,11 +1,13 @@
 import hashlib
 import re
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import database as db
+from extensions import limiter
 
 auth_bp = Blueprint("auth", __name__)
 login_manager = LoginManager()
@@ -56,7 +58,16 @@ def _validate_password(pw):
     return None
 
 
+def _is_safe_redirect(url):
+    """Only allow relative URLs — blocks //evil.com and http://evil.com."""
+    if not url:
+        return False
+    parsed = urlparse(url)
+    return not parsed.scheme and not parsed.netloc
+
+
 @auth_bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard"))
@@ -99,6 +110,7 @@ def register():
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard"))
@@ -134,7 +146,7 @@ def login():
                 login_user(User(row), remember=bool(request.form.get("remember")))
                 next_page = request.args.get("next")
                 return redirect(
-                    next_page if next_page and next_page.startswith("/") else url_for("dashboard")
+                    next_page if _is_safe_redirect(next_page) else url_for("dashboard")
                 )
             else:
                 attempts = (row.get("failed_attempts") or 0) + 1

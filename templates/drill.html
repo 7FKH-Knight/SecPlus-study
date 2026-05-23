@@ -70,18 +70,24 @@ function submitAnswer() {
       banner.textContent = 'Incorrect — Correct answer: ' + data.correct_answer;
     }
 
-    // Show all explanations
-    let html = '<h3>Explanations</h3>';
-    const letters = ['A','B','C','D'];
-    letters.forEach(l => {
-      const exp = data.explanations[l] || '';
-      const isCorrect = l === data.correct_answer;
-      const isSelected = l === selectedAnswer;
-      html += '<div class="exp-item ' + (isCorrect ? 'exp-correct' : '') + (isSelected && !isCorrect ? ' exp-wrong' : '') + '">';
-      html += '<strong>' + l + ':</strong> ' + exp;
-      html += '</div>';
+    // Build explanations using DOM (never innerHTML with server data — XSS prevention)
+    const box = document.getElementById('explanation-box');
+    box.innerHTML = '';
+    const title = document.createElement('h3');
+    title.textContent = 'Explanations';
+    box.appendChild(title);
+    ['A','B','C','D'].forEach(l => {
+      const div = document.createElement('div');
+      const classes = ['exp-item'];
+      if (l === data.correct_answer) classes.push('exp-correct');
+      if (l === selectedAnswer && l !== data.correct_answer) classes.push('exp-wrong');
+      div.className = classes.join(' ');
+      const strong = document.createElement('strong');
+      strong.textContent = l + ':';
+      div.appendChild(strong);
+      div.appendChild(document.createTextNode(' ' + (data.explanations[l] || '')));
+      box.appendChild(div);
     });
-    document.getElementById('explanation-box').innerHTML = html;
     document.getElementById('feedback-area').style.display = 'block';
     document.getElementById('submit-area').style.display = 'none';
 
