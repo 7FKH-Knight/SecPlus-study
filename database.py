@@ -5,6 +5,9 @@ import hashlib
 
 DB_PATH = os.environ.get("DB_PATH") or os.path.join(os.path.dirname(__file__), "study.db")
 
+# Ensure the directory exists (needed when DB_PATH points to a mounted volume)
+os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+
 
 def get_db():
     db = sqlite3.connect(DB_PATH)
