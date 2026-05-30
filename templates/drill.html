@@ -34,7 +34,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 const SESSION_ID = {{ session.id }};
 const QUESTION_ID = {{ question.id }};
 let selectedAnswer = null;

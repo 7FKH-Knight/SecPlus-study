@@ -56,7 +56,7 @@
 </div>
 
 {% if session.passed %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Confetti on PASS
 const banner = document.getElementById('score-banner');
 const colors = ['#7c5cbf','#22c55e','#4f8ef7','#f59e0b','#ec4899'];

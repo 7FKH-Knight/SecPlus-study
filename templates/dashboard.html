@@ -2,11 +2,11 @@
 {% block title %}Dashboard — Security+ Study{% endblock %}
 {% block content %}
 <h1 id="greeting">Hello, {{ current_user.username }} 👋</h1>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function(){
   const h = new Date().getHours();
   const word = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-  document.getElementById('greeting').textContent = 'Good ' + word + ', {{ current_user.username }} 👋';
+  document.getElementById('greeting').textContent = 'Good ' + word + ', ' + {{ current_user.username | tojson }} + ' 👋';
 })();
 </script>
 

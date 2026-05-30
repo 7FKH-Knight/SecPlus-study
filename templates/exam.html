@@ -104,7 +104,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 const SESSION_ID  = {{ session.id }};
 const TIME_LIMIT  = {{ session.time_limit_sec }};
 const TIME_START  = {{ time_remaining }};

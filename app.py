@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, abort
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, abort, g
 from flask_login import login_required, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime, timedelta, timezone
@@ -65,10 +65,18 @@ def get_all_ids_by_domain():
 def owns_session(session_row):
     """Return True if current_user owns this DB session row."""
     uid = session_row.get("user_id")
-    return uid is None or uid == current_user.id
+    return uid is not None and uid == current_user.id
 
 
 # ── Middleware ────────────────────────────────────────────────────────────────
+
+@app.before_request
+def set_csp_nonce():
+    g.csp_nonce = secrets.token_hex(16)
+
+
+app.jinja_env.globals["csp_nonce"] = lambda: getattr(g, "csp_nonce", "")
+
 
 @app.before_request
 def check_csrf():
@@ -86,18 +94,20 @@ def check_csrf():
 
 @app.after_request
 def add_security_headers(response):
+    nonce = getattr(g, "csp_nonce", "")
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        f"default-src 'self'; script-src 'self' 'nonce-{nonce}'; "
         "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
         "connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self';"
     )
     response.headers["Permissions-Policy"] = (
         "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
     )
-    if request.is_secure:
+    # M3: Always send HSTS in production — Railway proxy makes is_secure False
+    if not app.config.get("DEBUG"):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
@@ -154,7 +164,7 @@ def dashboard():
     )
 
     due_row = db.fetchone(
-        "SELECT COUNT(*) as cnt FROM sm2_cards WHERE next_review <= ?", (today_str(),)
+        "SELECT COUNT(*) as cnt FROM sm2_cards WHERE user_id=? AND next_review <= ?", (uid, today_str())
     )
     stats["cards_due"] = due_row["cnt"]
 
@@ -213,7 +223,8 @@ def dashboard():
         "WHEN interval BETWEEN 1 AND 6 THEN '1-6d' "
         "WHEN interval BETWEEN 7 AND 30 THEN '7-30d' "
         "ELSE '30d+' END as bucket, COUNT(*) as cnt "
-        "FROM sm2_cards GROUP BY bucket"
+        "FROM sm2_cards WHERE user_id=? GROUP BY bucket",
+        (uid,)
     )
     sm2_buckets = {r["bucket"]: r["cnt"] for r in sm2_dist}
 
@@ -375,8 +386,16 @@ def exam_submit(session_id):
          for r in answers_data],
     )
 
+    exam_uid = current_user.id
     for row in answers_data:
-        card = db.fetchone("SELECT * FROM sm2_cards WHERE question_id=?", (row["question_id"],))
+        db.execute(
+            "INSERT OR IGNORE INTO sm2_cards (user_id, question_id) VALUES (?,?)",
+            (exam_uid, row["question_id"]),
+        )
+        card = db.fetchone(
+            "SELECT * FROM sm2_cards WHERE user_id=? AND question_id=?",
+            (exam_uid, row["question_id"]),
+        )
         if card:
             quality = sm2.quality_from_correct(row["is_correct"])
             new_e, new_i, new_r, next_rev = sm2.update_card(
@@ -384,14 +403,15 @@ def exam_submit(session_id):
             )
             db.execute(
                 "UPDATE sm2_cards SET easiness=?, interval=?, repetitions=?, next_review=?, "
-                "times_seen=times_seen+1, times_correct=times_correct+? WHERE question_id=?",
-                (new_e, new_i, new_r, next_rev, row["is_correct"], row["question_id"]),
+                "times_seen=times_seen+1, times_correct=times_correct+? "
+                "WHERE user_id=? AND question_id=?",
+                (new_e, new_i, new_r, next_rev, row["is_correct"], exam_uid, row["question_id"]),
             )
 
     scaled = scale_score(raw_correct, len(q_rows))
     passed = 1 if scaled >= 750 else 0
-    time_used = request.form.get("time_used_sec", type=int) or 0
-    time_used = max(0, min(time_used, sess["time_limit_sec"]))
+    # Use the server-tracked value (updated by heartbeats every 30s); ignore client-submitted time
+    time_used = max(0, min(sess.get("time_used_sec") or 0, sess["time_limit_sec"]))
 
     db.execute(
         "UPDATE exam_sessions SET raw_score=?, scaled_score=?, passed=?, "
@@ -436,8 +456,8 @@ def exam_review(session_id):
 @login_required
 def drill_start():
     due = db.fetchall(
-        "SELECT question_id FROM sm2_cards WHERE next_review <= ? ORDER BY next_review LIMIT 30",
-        (today_str(),)
+        "SELECT question_id FROM sm2_cards WHERE user_id=? AND next_review <= ? ORDER BY next_review LIMIT 30",
+        (current_user.id, today_str())
     )
     due_ids = {r["question_id"] for r in due}
 
@@ -558,7 +578,15 @@ def drill_answer(session_id):
         (session_id, question_id),
     )
 
-    card = db.fetchone("SELECT * FROM sm2_cards WHERE question_id=?", (question_id,))
+    drill_uid = current_user.id
+    db.execute(
+        "INSERT OR IGNORE INTO sm2_cards (user_id, question_id) VALUES (?,?)",
+        (drill_uid, question_id),
+    )
+    card = db.fetchone(
+        "SELECT * FROM sm2_cards WHERE user_id=? AND question_id=?",
+        (drill_uid, question_id),
+    )
     if card:
         quality = sm2.quality_from_correct(is_correct)
         new_e, new_i, new_r, next_rev = sm2.update_card(
@@ -566,8 +594,9 @@ def drill_answer(session_id):
         )
         db.execute(
             "UPDATE sm2_cards SET easiness=?, interval=?, repetitions=?, next_review=?, "
-            "times_seen=times_seen+1, times_correct=times_correct+? WHERE question_id=?",
-            (new_e, new_i, new_r, next_rev, is_correct, question_id),
+            "times_seen=times_seen+1, times_correct=times_correct+? "
+            "WHERE user_id=? AND question_id=?",
+            (new_e, new_i, new_r, next_rev, is_correct, drill_uid, question_id),
         )
 
     return jsonify({

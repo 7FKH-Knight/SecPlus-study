@@ -51,10 +51,12 @@ def _validate_username(u):
 
 
 def _validate_password(pw):
-    if len(pw) < 8:
-        return "Password must be at least 8 characters."
+    if len(pw) < 12:
+        return "Password must be at least 12 characters."
     if not any(c.isdigit() for c in pw):
         return "Password must contain at least one number."
+    if not any(c.isupper() for c in pw):
+        return "Password must contain at least one uppercase letter."
     return None
 
 
@@ -167,7 +169,7 @@ def login():
     return render_template("login.html", error=error, registered=registered)
 
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()

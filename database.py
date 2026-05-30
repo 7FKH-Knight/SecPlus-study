@@ -45,13 +45,15 @@ def init_db():
             difficulty INTEGER NOT NULL DEFAULT 3
         );
         CREATE TABLE IF NOT EXISTS sm2_cards (
-            question_id INTEGER PRIMARY KEY REFERENCES questions(id),
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            question_id INTEGER NOT NULL REFERENCES questions(id),
             easiness REAL NOT NULL DEFAULT 2.5,
             interval INTEGER NOT NULL DEFAULT 0,
             repetitions INTEGER NOT NULL DEFAULT 0,
             next_review TEXT NOT NULL DEFAULT '2000-01-01',
             times_seen INTEGER NOT NULL DEFAULT 0,
-            times_correct INTEGER NOT NULL DEFAULT 0
+            times_correct INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, question_id)
         );
         CREATE TABLE IF NOT EXISTS exam_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,6 +103,25 @@ def init_db():
         db.execute("ALTER TABLE users ADD COLUMN locked_until TEXT")
     db.commit()
 
+    # Migrate sm2_cards to per-user schema if user_id column is missing
+    sm2_cols = {row[1] for row in db.execute("PRAGMA table_info(sm2_cards)").fetchall()}
+    if "user_id" not in sm2_cols:
+        db.executescript("""
+            DROP TABLE IF EXISTS sm2_cards;
+            CREATE TABLE sm2_cards (
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                question_id INTEGER NOT NULL REFERENCES questions(id),
+                easiness REAL NOT NULL DEFAULT 2.5,
+                interval INTEGER NOT NULL DEFAULT 0,
+                repetitions INTEGER NOT NULL DEFAULT 0,
+                next_review TEXT NOT NULL DEFAULT '2000-01-01',
+                times_seen INTEGER NOT NULL DEFAULT 0,
+                times_correct INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, question_id)
+            );
+        """)
+        db.commit()
+
     # Migrate plaintext emails → SHA-256 hashes (safe to run repeatedly)
     for row in db.execute("SELECT id, email FROM users").fetchall():
         if "@" in row[1]:
@@ -141,10 +162,6 @@ def load_questions(questions_path):
                 q.get("difficulty", 3),
             ),
         )
-        db.execute(
-            "INSERT OR IGNORE INTO sm2_cards (question_id) VALUES (?)", (q["id"],)
-        )
-
     db.commit()
     loaded = db.execute("SELECT COUNT(*) FROM questions").fetchone()[0]
     db.close()
