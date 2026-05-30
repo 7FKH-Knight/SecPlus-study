@@ -42,6 +42,7 @@ def generate_csrf():
 
 app.jinja_env.globals["csrf_token"] = generate_csrf
 app.jinja_env.globals["DOMAIN_NAMES"] = DOMAIN_NAMES
+app.jinja_env.globals["admin_username"] = os.environ.get("ADMIN_USERNAME", "").strip()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -713,6 +714,34 @@ def api_stats():
         "total_correct": int(row["correct"] or 0),
         "cards_due": cards_due,
     })
+
+
+def is_admin():
+    admin = os.environ.get("ADMIN_USERNAME", "").strip()
+    return bool(admin) and current_user.username == admin
+
+
+@app.route("/admin")
+@login_required
+def admin_dashboard():
+    if not is_admin():
+        abort(403)
+
+    users = db.fetchall(
+        "SELECT u.id, u.username, u.created_at, u.failed_attempts, u.locked_until, "
+        "COUNT(DISTINCT es.id) as total_sessions "
+        "FROM users u "
+        "LEFT JOIN exam_sessions es ON es.user_id=u.id "
+        "GROUP BY u.id ORDER BY u.created_at DESC"
+    )
+
+    logs = db.fetchall(
+        "SELECT ll.logged_in_at, ll.ip_address, u.username "
+        "FROM login_logs ll JOIN users u ON ll.user_id=u.id "
+        "ORDER BY ll.id DESC LIMIT 100"
+    )
+
+    return render_template("admin.html", users=users, logs=logs)
 
 
 if __name__ == "__main__":

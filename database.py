@@ -84,6 +84,12 @@ def init_db():
             position INTEGER NOT NULL,
             answered INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            logged_in_at TEXT NOT NULL,
+            ip_address TEXT
+        );
     """)
     db.commit()
 

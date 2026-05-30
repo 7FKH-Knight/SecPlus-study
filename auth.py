@@ -145,6 +145,10 @@ def login():
                     "UPDATE users SET failed_attempts=0, locked_until=NULL WHERE id=?",
                     (row["id"],),
                 )
+                db.execute(
+                    "INSERT INTO login_logs (user_id, logged_in_at, ip_address) VALUES (?,?,?)",
+                    (row["id"], datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"), request.remote_addr),
+                )
                 login_user(User(row), remember=bool(request.form.get("remember")))
                 next_page = request.args.get("next")
                 return redirect(

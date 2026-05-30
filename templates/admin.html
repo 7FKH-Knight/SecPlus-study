@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Admin — Security+ Study{% endblock %}
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1>Admin Dashboard</h1>
+  <span class="chip pass">{{ users|length }} user{{ 's' if users|length != 1 }}</span>
+</div>
+
+<!-- ── Registered Users ─────────────────────────────────────────── -->
+<div class="section-box" style="margin-bottom:2rem">
+  <h2 style="margin-bottom:1rem">Registered Users</h2>
+  {% if users %}
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Username</th>
+        <th>Registered</th>
+        <th>Sessions</th>
+        <th>Failed Logins</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+      <td class="muted">{{ u.id }}</td>
+      <td><strong>{{ u.username }}</strong></td>
+      <td>{{ u.created_at[:10] }}</td>
+      <td>{{ u.total_sessions }}</td>
+      <td>{{ u.failed_attempts or 0 }}</td>
+      <td>
+        {% if u.locked_until %}
+          <span class="chip fail">Locked until {{ u.locked_until[11:16] }} UTC</span>
+        {% else %}
+          <span class="chip pass">Active</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No users yet.</p>
+  {% endif %}
+</div>
+
+<!-- ── Login Activity ───────────────────────────────────────────── -->
+<div class="section-box">
+  <h2 style="margin-bottom:1rem">Recent Logins <span class="muted" style="font-size:0.85rem;font-weight:400">(last 100)</span></h2>
+  {% if logs %}
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th>Date &amp; Time (UTC)</th>
+        <th>Username</th>
+        <th>IP Address</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for l in logs %}
+    <tr>
+      <td>{{ l.logged_in_at.replace('T', ' ') }}</td>
+      <td><strong>{{ l.username }}</strong></td>
+      <td class="muted" style="font-family:monospace">{{ l.ip_address or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No logins recorded yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

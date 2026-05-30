@@ -29,6 +29,9 @@
       <a href="{{ url_for('exam_start') }}">Practice Exam</a>
       <a href="{{ url_for('drill_start') }}">Drill Mode</a>
       <a href="{{ url_for('history') }}" class="{{ 'active' if request.endpoint == 'history' }}">History</a>
+      {% if current_user.username == (admin_username or '') %}
+      <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Admin</a>
+      {% endif %}
     </div>
     <div class="nav-user">
       <span class="nav-username">{{ current_user.username }}</span>
