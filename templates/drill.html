@@ -16,7 +16,7 @@
   <div class="question-stem">{{ question.stem }}</div>
   <div class="options" id="drill-options">
     {% for letter in ['A','B','C','D'] %}
-    <label class="option-label" id="lbl-{{ letter }}" onclick="selectOption('{{ letter }}', this)">
+    <label class="option-label" id="lbl-{{ letter }}" data-letter="{{ letter }}">
       <span class="option-letter">{{ letter }}</span>
       <span class="option-text">{{ question['option_' + letter.lower()] }}</span>
     </label>
@@ -26,11 +26,11 @@
   <div id="feedback-area" style="display:none">
     <div id="feedback-banner"></div>
     <div id="explanation-box" class="explanation-box"></div>
-    <button class="btn btn-primary" onclick="nextQuestion()">Next Question</button>
+    <button class="btn btn-primary" id="next-question-btn">Next Question</button>
   </div>
 
   <div id="submit-area">
-    <button class="btn btn-primary" id="submit-btn" onclick="submitAnswer()" disabled>Submit Answer</button>
+    <button class="btn btn-primary" id="submit-btn" disabled>Submit Answer</button>
   </div>
 </div>
 
@@ -51,7 +51,6 @@ function submitAnswer() {
   document.getElementById('submit-btn').disabled = true;
   document.querySelectorAll('.option-label').forEach(l => {
     l.style.pointerEvents = 'none';
-    l.onclick = null;
   });
 
   fetch('/drill/' + SESSION_ID + '/answer', {
@@ -102,5 +101,12 @@ function submitAnswer() {
 function nextQuestion() {
   window.location.href = '/drill/' + SESSION_ID + '/question';
 }
+
+// Wire up all event handlers here — inline onclick blocked by CSP nonce policy
+document.querySelectorAll('.option-label').forEach(el => {
+  el.addEventListener('click', () => selectOption(el.dataset.letter, el));
+});
+document.getElementById('submit-btn').addEventListener('click', submitAnswer);
+document.getElementById('next-question-btn').addEventListener('click', nextQuestion);
 </script>
 {% endblock %}

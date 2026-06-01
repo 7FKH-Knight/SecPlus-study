@@ -29,7 +29,7 @@
     <div class="q-nav" id="q-nav">
       {% for q in questions %}
       <button type="button" class="q-btn{% if loop.index == 1 %} current{% endif %}"
-              data-idx="{{ loop.index0 }}" onclick="goTo({{ loop.index0 }})">
+              data-idx="{{ loop.index0 }}">
         {{ loop.index }}
       </button>
       {% endfor %}
@@ -57,8 +57,7 @@
       <div class="options">
         {% for letter in ['A','B','C','D'] %}
         <label class="option-label" id="lbl-{{ q.id }}-{{ letter }}">
-          <input type="radio" name="q_{{ q.id }}" value="{{ letter }}"
-                 onchange="selectAnswer({{ loop.index0 }}, this)">
+          <input type="radio" name="q_{{ q.id }}" value="{{ letter }}">
           <span class="option-letter">{{ letter }}</span>
           <span class="option-text">{{ q['option_' + letter.lower()] }}</span>
           <span class="option-check">✓</span>
@@ -70,13 +69,13 @@
 
     <!-- ── Navigation row ───────────────────────────────────────── -->
     <div class="exam-nav-row">
-      <button type="button" class="btn btn-secondary" id="prev-btn" onclick="prev()" disabled>
+      <button type="button" class="btn btn-secondary" id="prev-btn" disabled>
         ← Previous
       </button>
       <span class="exam-nav-center">
         <span id="answered-count">0</span> / {{ questions|length }} answered
       </span>
-      <button type="button" class="btn btn-primary" id="next-btn" onclick="next()">
+      <button type="button" class="btn btn-primary" id="next-btn">
         Next →
       </button>
     </div>
@@ -84,7 +83,7 @@
     <!-- ── Submit area ────────────────────────────────────────────── -->
     <div class="submit-area" id="submit-area" style="display:none">
       <div id="unanswered-warn" class="warn" style="display:none"></div>
-      <button type="button" class="btn btn-success btn-lg" onclick="submitExam()">
+      <button type="button" class="btn btn-success btn-lg" id="submit-exam-btn">
         Submit Exam
       </button>
     </div>
@@ -98,8 +97,8 @@
     <h2>Submit Exam?</h2>
     <p id="modal-msg"></p>
     <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal()">Keep Reviewing</button>
-      <button class="btn btn-success" onclick="doSubmit()">Submit Now</button>
+      <button class="btn btn-secondary" id="keep-reviewing-btn">Keep Reviewing</button>
+      <button class="btn btn-success" id="submit-now-btn">Submit Now</button>
     </div>
   </div>
 </div>
@@ -153,7 +152,7 @@ try {
 updateUI();
 
 // ── Answer selection ───────────────────────────────────────────────
-function selectAnswer(questionLabelIdx, radioEl) {
+function selectAnswer(radioEl) {
   const card = radioEl.closest('[data-index]');
   const idx = parseInt(card.dataset.index);
   answered[idx] = true;
@@ -233,6 +232,22 @@ function doSubmit() {
   try { localStorage.removeItem(LS_KEY); } catch (_) {}
   document.getElementById('exam-form').submit();
 }
+
+// ── Wire up all event handlers (inline onclick blocked by CSP nonce policy) ──
+document.getElementById('q-nav').addEventListener('click', e => {
+  const btn = e.target.closest('.q-btn');
+  if (btn) goTo(parseInt(btn.dataset.idx));
+});
+
+document.getElementById('exam-form').addEventListener('change', e => {
+  if (e.target.type === 'radio') selectAnswer(e.target);
+});
+
+document.getElementById('prev-btn').addEventListener('click', prev);
+document.getElementById('next-btn').addEventListener('click', next);
+document.getElementById('submit-exam-btn').addEventListener('click', submitExam);
+document.getElementById('keep-reviewing-btn').addEventListener('click', closeModal);
+document.getElementById('submit-now-btn').addEventListener('click', doSubmit);
 
 // ── Pause ──────────────────────────────────────────────────────────
 document.getElementById('pause-btn').addEventListener('click', () => {
