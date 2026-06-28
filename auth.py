@@ -1,4 +1,5 @@
 import hashlib
+import os
 import re
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
@@ -89,6 +90,11 @@ def register():
         elif error is None:
             error = _validate_password(password)
 
+        admin_username = os.environ.get("ADMIN_USERNAME", "").strip()
+        if error is None and admin_username and username.lower() == admin_username.lower():
+            # Reserve the admin username so it can't be squatted by a public registration.
+            error = "Username or email already taken."
+
         if error is None:
             email_hash = hash_email(email)
             existing = db.fetchone(
@@ -130,16 +136,17 @@ def login():
         else:
             row = db.fetchone("SELECT * FROM users WHERE username=?", (identifier,))
 
+        # Generic message for every failure path (no such user, locked, wrong password).
+        # Distinct messages let an attacker confirm a username exists by checking
+        # whether it ever reports "locked" after 5 bad guesses — closing that oracle.
+        generic_error = "Invalid username or password. If you've had repeated failed attempts, please wait a few minutes and try again."
+
         if not row:
-            error = "Invalid username or password."
+            error = generic_error
         else:
             locked_until = row.get("locked_until")
             if locked_until and datetime.utcnow() < datetime.fromisoformat(locked_until):
-                remaining = int(
-                    (datetime.fromisoformat(locked_until) - datetime.utcnow()).total_seconds()
-                )
-                mins = max(1, remaining // 60)
-                error = f"Account locked after too many failed attempts. Try again in {mins} minute(s)."
+                error = generic_error
             elif check_password_hash(row["password_hash"], password):
                 db.execute(
                     "UPDATE users SET failed_attempts=0, locked_until=NULL WHERE id=?",
@@ -162,9 +169,7 @@ def login():
                         "%Y-%m-%dT%H:%M:%S"
                     )
                     attempts = 0
-                    error = "Too many failed attempts. Account locked for 15 minutes."
-                else:
-                    error = "Invalid username or password."
+                error = generic_error
                 db.execute(
                     "UPDATE users SET failed_attempts=?, locked_until=? WHERE id=?",
                     (attempts, new_locked, row["id"]),

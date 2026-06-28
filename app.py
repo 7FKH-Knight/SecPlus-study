@@ -20,8 +20,11 @@ app = Flask(__name__)
 env = os.environ.get("FLASK_ENV", "development")
 app.config.from_object(config[env])
 
-# Trust Railway's reverse proxy so rate limiting sees real client IPs
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+# Trust Railway's reverse proxy chain so rate limiting and login logs see the
+# real client IP. Railway's edge appends TWO hops to X-Forwarded-For
+# (client_ip, internal_proxy_ip) — trusting only 1 picks the rotating
+# internal hop instead of the client, silently defeating per-IP rate limits.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2, x_proto=1, x_host=1)
 
 # Ensure DB tables exist regardless of whether started via gunicorn or directly
 db.init_db()
